@@ -1,11 +1,11 @@
-from src.training.train import entrenar_modelo
+from src.training.randomSearch import entrenar_modelo
 
 
 def main():
 
     print("=" * 70)
     print("🐄 SIPREM-BOVINO")
-    print("🚀 ENTRENAMIENTO Y VALIDACIÓN GROUPKFOLD")
+    print("🔎 RANDOMIZED SEARCH + GROUPKFOLD")
     print("=" * 70)
 
     entrenar_modelo()
