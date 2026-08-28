@@ -31,7 +31,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, confusion_matrix
 
 from src.config.settings import FEATURES, TARGET, TEST_SIZE, RANDOM_STATE
-from main import get_connection
+from src.config.database import get_connection
 
 # Lotes reales originales del proyecto (documento histórico, Etapa 1-5).
 # Todo lo que no esté en esta lista se considera lote sintético agregado
