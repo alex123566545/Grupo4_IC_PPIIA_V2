@@ -1,0 +1,3 @@
+modelo,auc,umbral,precision,recall,f1,tn,fp,fn,tp,promovido
+produccion,,0.55,0.0,0.0,0.0,0,0,3,0,False
+candidato,,0.57,0.0,0.0,0.0,0,0,3,0,False

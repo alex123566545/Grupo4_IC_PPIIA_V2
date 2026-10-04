@@ -1,0 +1,177 @@
+name: SIPREM-BOVINO ML Pipeline
+
+on:
+  # Ejecución manual
+  workflow_dispatch:
+
+  # Ejecución semanal
+  schedule:
+    - cron: "0 6 * * 1"
+
+  # También ejecutar cuando haya cambios en main
+  push:
+    branches:
+      - main
+
+
+jobs:
+  siprem_pipeline:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ============================================================
+      # 1. OBTENER CÓDIGO
+      # ============================================================
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      # ============================================================
+      # 2. CONFIGURAR PYTHON
+      # ============================================================
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+
+      # ============================================================
+      # 3. INSTALAR DEPENDENCIAS
+      # ============================================================
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+          # Dependencias necesarias actualmente
+          # para entrenamiento y conexión PostgreSQL
+          pip install scikit-learn psycopg2-binary
+
+
+      # ============================================================
+      # 4. CONFIGURAR CREDENCIALES
+      # ============================================================
+
+      - name: Configure environment
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          echo "Variables de entorno configuradas."
+
+
+      # ============================================================
+      # 5. REENTRENAMIENTO
+      # ============================================================
+
+      - name: Retrain model
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          python main_reentrenamiento.py
+
+
+      # ============================================================
+      # 6. GENERAR PREDICCIONES
+      # ============================================================
+
+      - name: Generate predictions
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          python main_prediccion.py
+
+
+      # ============================================================
+      # 7. INSTALAR CLIENTE POSTGRESQL
+      # ============================================================
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+
+      # ============================================================
+      # 8. BACKUP DE SUPABASE
+      # ============================================================
+
+      - name: Backup Supabase database
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          mkdir -p backups
+
+          pg_dump \
+            -h aws-0-us-west-2.pooler.supabase.com \
+            -p 5432 \
+            -U postgres.cuxppijddpiuaxwyswfb \
+            -d postgres \
+            -F c \
+            -f backups/siprem_backup.dump
+
+
+      # ============================================================
+      # 9. GUARDAR ARTIFACTS DEL MODELO
+      # ============================================================
+
+      - name: Upload ML artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: siprem-ml-models
+          path: |
+            models/model.pkl
+            models/encoders.pkl
+            models/threshold_rf_sin_lote29.pkl
+            models/candidate/*
+            models/comparacion_modelos.csv
+            models/diagnostico_lotes_rf_sin_lote29.csv
+            models/predicciones_test_rf_sin_lote29.csv
+          if-no-files-found: ignore
+
+
+      # ============================================================
+      # 10. GUARDAR RESULTADO DE PREDICCIONES
+      # ============================================================
+
+      - name: Upload predictions CSV
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: siprem-predictions
+          path: models/predicciones_dataset.csv
+          if-no-files-found: ignore
+
+
+      # ============================================================
+      # 11. GUARDAR BACKUP
+      # ============================================================
+
+      - name: Upload database backup
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: siprem-supabase-backup
+          path: backups/siprem_backup.dump
+          if-no-files-found: ignore
+
+
+      # ============================================================
+      # 12. FINALIZACIÓN
+      # ============================================================
+
+      - name: Pipeline finished
+        run: |
+          echo "=============================================="
+          echo "🐄 SIPREM-BOVINO"
+          echo "=============================================="
+          echo "✅ Reentrenamiento evaluado"
+          echo "✅ Modelo candidato gestionado"
+          echo "✅ Predicciones generadas"
+          echo "✅ Backup realizado"
+          echo "=============================================="
