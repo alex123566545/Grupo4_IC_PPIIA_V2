@@ -1,7 +1,7 @@
+```yaml
 name: SIPREM-BOVINO ML Pipeline
 
 on:
-
   push:
     branches:
       - main
@@ -11,98 +11,180 @@ on:
   schedule:
     - cron: '0 6 * * 1'
 
-
 jobs:
-
   siprem_pipeline:
-
     runs-on: ubuntu-latest
 
     steps:
 
-      # =====================================
-      # CLONAR REPOSITORIO
-      # =====================================
+      # ============================================================
+      # 1. Descargar el repositorio
+      # ============================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
-      # =====================================
-      # CONFIGURAR PYTHON
-      # =====================================
+      # ============================================================
+      # 2. Configurar Python
+      # ============================================================
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
 
-      # =====================================
-      # INSTALAR DEPENDENCIAS
-      # =====================================
+      # ============================================================
+      # 3. Instalar dependencias
+      # ============================================================
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
 
-      # =====================================
-      # REENTRENAMIENTO DEL MODELO
-      # =====================================
+      # ============================================================
+      # 4. Verificar conexión con Supabase
+      # ============================================================
+      - name: Verify Supabase connection
+        env:
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+        run: |
+          python -c "
+          import os
+          import psycopg2
+
+          print('==============================================')
+          print('🔎 VERIFICACIÓN DE CONEXIÓN SUPABASE')
+          print('==============================================')
+
+          print('HOST:', os.getenv('SUPABASE_DB_HOST'))
+          print('PORT:', os.getenv('SUPABASE_DB_PORT'))
+          print('DATABASE:', os.getenv('SUPABASE_DB_NAME'))
+          print('USER:', os.getenv('SUPABASE_DB_USER'))
+          print('PASSWORD CONFIGURADA:', bool(os.getenv('SUPABASE_DB_PASSWORD')))
+
+          conn = psycopg2.connect(
+              host=os.getenv('SUPABASE_DB_HOST'),
+              port=os.getenv('SUPABASE_DB_PORT', '5432'),
+              database=os.getenv('SUPABASE_DB_NAME', 'postgres'),
+              user=os.getenv('SUPABASE_DB_USER'),
+              password=os.getenv('SUPABASE_DB_PASSWORD'),
+              sslmode='require'
+          )
+
+          cur = conn.cursor()
+
+          cur.execute('''
+              SELECT
+                  current_database(),
+                  current_user,
+                  inet_server_addr(),
+                  inet_server_port();
+          ''')
+
+          print('CONEXION:', cur.fetchone())
+
+          cur.execute('''
+              SELECT
+                  n.nspname,
+                  c.relname,
+                  c.relkind
+              FROM pg_class c
+              JOIN pg_namespace n
+                  ON n.oid = c.relnamespace
+              WHERE n.nspname = 'gold_ml'
+              AND c.relname = 'predicciones_verificadas_para_entrenamiento';
+          ''')
+
+          resultado = cur.fetchone()
+
+          print('OBJETO ENCONTRADO:', resultado)
+
+          if resultado is None:
+              print('❌ NO SE ENCONTRÓ LA TABLA/OBJETO')
+          else:
+              print('✅ EL OBJETO EXISTE Y ES VISIBLE DESDE GITHUB')
+
+          cur.close()
+          conn.close()
+
+          print('==============================================')
+          "
+
+
+      # ============================================================
+      # 5. Reentrenamiento del modelo
+      # ============================================================
       - name: Retrain model
         env:
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
         run: |
           python main_reentrenamiento.py
 
 
-      # =====================================
-      # GENERAR PREDICCIONES
-      # =====================================
+      # ============================================================
+      # 6. Generar predicciones
+      # ============================================================
       - name: Generate predictions
         env:
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
         run: |
           python main_prediccion.py
 
 
-      # =====================================
-      # INSTALAR POSTGRESQL CLIENT
-      # =====================================
+      # ============================================================
+      # 7. Instalar cliente PostgreSQL
+      # ============================================================
       - name: Install PostgreSQL Client
         run: |
-
           sudo apt-get update
-
           sudo apt-get install -y postgresql-client
 
 
-      # =====================================
-      # CREAR RESPALDO
-      # =====================================
+      # ============================================================
+      # 8. Backup de Supabase
+      # ============================================================
       - name: Backup Database
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
 
+        run: |
           mkdir -p backups
 
           pg_dump \
-            -h aws-0-us-west-2.pooler.supabase.com \
-            -p 5432 \
-            -U postgres.cuxppijddpiuaxwyswfb \
-            -d postgres \
+            -h ${{ secrets.SUPABASE_DB_HOST }} \
+            -p ${{ secrets.SUPABASE_DB_PORT }} \
+            -U ${{ secrets.SUPABASE_DB_USER }} \
+            -d ${{ secrets.SUPABASE_DB_NAME }} \
             -F c \
             -f backups/siprem_backup.dump
 
 
-      # =====================================
-      # SUBIR ARTIFACTS DEL MODELO
-      # =====================================
+      # ============================================================
+      # 9. Guardar modelos y artifacts
+      # ============================================================
       - name: Upload ML artifacts
         uses: actions/upload-artifact@v4
         if: always()
+
         with:
           name: siprem-ml-models
+
           path: |
             models/model.pkl
             models/encoders.pkl
@@ -111,35 +193,46 @@ jobs:
             models/comparacion_modelos.csv
             models/diagnostico_lotes_rf_sin_lote29.csv
             models/predicciones_test_rf_sin_lote29.csv
+
           if-no-files-found: ignore
 
 
-      # =====================================
-      # SUBIR PREDICCIONES
-      # =====================================
+      # ============================================================
+      # 10. Guardar predicciones CSV
+      # ============================================================
       - name: Upload predictions CSV
         uses: actions/upload-artifact@v4
         if: always()
+
         with:
           name: siprem-predictions
           path: models/predicciones_dataset.csv
           if-no-files-found: ignore
 
 
-      # =====================================
-      # SUBIR RESPALDO
-      # =====================================
+      # ============================================================
+      # 11. Guardar backup
+      # ============================================================
       - name: Upload Backup
         uses: actions/upload-artifact@v4
         if: always()
+
         with:
           name: siprem-supabase-backup
           path: backups/siprem_backup.dump
           if-no-files-found: ignore
 
 
-      # =====================================
-      # FIN
-      # =====================================
+      # ============================================================
+      # 12. Final
+      # ============================================================
       - name: Pipeline finished
-        run: echo "🚀 REENTRENAMIENTO + PREDICCIONES + BACKUP ejecutado correctamente"
+        run: |
+          echo "=============================================="
+          echo "🐄 SIPREM-BOVINO"
+          echo "=============================================="
+          echo "✅ Reentrenamiento ejecutado"
+          echo "✅ Predicciones generadas"
+          echo "✅ Backup realizado"
+          echo "=============================================="
+```
