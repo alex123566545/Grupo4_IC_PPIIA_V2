@@ -53,7 +53,7 @@ N_SPLITS_EXTERNOS = 5
 N_SPLITS_INTERNOS = 4
 N_REPEATS = 5
 
-RECALL_MINIMO = 0.60
+RECALL_MINIMO = 0.75
 
 # ------------------------------------------------------------
 # LOTE EXCLUIDO
