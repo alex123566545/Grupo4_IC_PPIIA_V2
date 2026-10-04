@@ -10,8 +10,10 @@ on:
   schedule:
     - cron: '0 6 * * 1'
 
+
 jobs:
   siprem_pipeline:
+
     runs-on: ubuntu-latest
 
     steps:
@@ -46,10 +48,6 @@ jobs:
       # ============================================================
       - name: Verify Supabase connection
         env:
-          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
-          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
-          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
-          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
         run: |
@@ -61,23 +59,25 @@ jobs:
           print('🔎 VERIFICACIÓN DE CONEXIÓN SUPABASE')
           print('==============================================')
 
-          print('HOST:', os.getenv('SUPABASE_DB_HOST'))
-          print('PORT:', os.getenv('SUPABASE_DB_PORT'))
-          print('DATABASE:', os.getenv('SUPABASE_DB_NAME'))
-          print('USER:', os.getenv('SUPABASE_DB_USER'))
-          print('PASSWORD CONFIGURADA:', bool(os.getenv('SUPABASE_DB_PASSWORD')))
+          print(
+              'PASSWORD CONFIGURADA:',
+              bool(os.getenv('SUPABASE_DB_PASSWORD'))
+          )
 
           conn = psycopg2.connect(
-              host=os.getenv('SUPABASE_DB_HOST'),
-              port=os.getenv('SUPABASE_DB_PORT', '5432'),
-              database=os.getenv('SUPABASE_DB_NAME', 'postgres'),
-              user=os.getenv('SUPABASE_DB_USER'),
+              host='aws-0-us-west-2.pooler.supabase.com',
+              port=5432,
+              database='postgres',
+              user='postgres.cuxppijddpiuaxwyswfb',
               password=os.getenv('SUPABASE_DB_PASSWORD'),
               sslmode='require'
           )
 
           cur = conn.cursor()
 
+          # --------------------------------------------------------
+          # Comprobar a qué base de datos estamos conectados
+          # --------------------------------------------------------
           cur.execute('''
               SELECT
                   current_database(),
@@ -88,6 +88,10 @@ jobs:
 
           print('CONEXION:', cur.fetchone())
 
+
+          # --------------------------------------------------------
+          # Comprobar que existe el objeto necesario
+          # --------------------------------------------------------
           cur.execute('''
               SELECT
                   n.nspname,
@@ -104,27 +108,34 @@ jobs:
 
           print('OBJETO ENCONTRADO:', resultado)
 
+
           if resultado is None:
-              print('❌ NO SE ENCONTRÓ LA TABLA/OBJETO')
+              print(
+                  '❌ NO SE ENCONTRÓ '
+                  'gold_ml.predicciones_verificadas_para_entrenamiento'
+              )
+              raise SystemExit(1)
+
           else:
-              print('✅ EL OBJETO EXISTE Y ES VISIBLE DESDE GITHUB')
+              print(
+                  '✅ EL OBJETO EXISTE Y ES VISIBLE DESDE GITHUB'
+              )
+
 
           cur.close()
           conn.close()
 
           print('==============================================')
+          print('✅ VERIFICACIÓN FINALIZADA')
+          print('==============================================')
           "
 
 
       # ============================================================
-      # 5. Reentrenamiento del modelo
+      # 5. Reentrenar modelo
       # ============================================================
       - name: Retrain model
         env:
-          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
-          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
-          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
-          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
         run: |
@@ -136,10 +147,6 @@ jobs:
       # ============================================================
       - name: Generate predictions
         env:
-          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
-          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
-          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
-          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
         run: |
@@ -156,7 +163,7 @@ jobs:
 
 
       # ============================================================
-      # 8. Backup de Supabase
+      # 8. Crear backup de Supabase
       # ============================================================
       - name: Backup Database
         env:
@@ -166,19 +173,20 @@ jobs:
           mkdir -p backups
 
           pg_dump \
-            -h ${{ secrets.SUPABASE_DB_HOST }} \
-            -p ${{ secrets.SUPABASE_DB_PORT }} \
-            -U ${{ secrets.SUPABASE_DB_USER }} \
-            -d ${{ secrets.SUPABASE_DB_NAME }} \
+            -h aws-0-us-west-2.pooler.supabase.com \
+            -p 5432 \
+            -U postgres.cuxppijddpiuaxwyswfb \
+            -d postgres \
             -F c \
             -f backups/siprem_backup.dump
 
 
       # ============================================================
-      # 9. Guardar modelos y artifacts
+      # 9. Guardar artifacts del modelo
       # ============================================================
       - name: Upload ML artifacts
         uses: actions/upload-artifact@v4
+
         if: always()
 
         with:
@@ -197,15 +205,19 @@ jobs:
 
 
       # ============================================================
-      # 10. Guardar predicciones CSV
+      # 10. Guardar predicciones
       # ============================================================
       - name: Upload predictions CSV
         uses: actions/upload-artifact@v4
+
         if: always()
 
         with:
           name: siprem-predictions
-          path: models/predicciones_dataset.csv
+
+          path: |
+            models/predicciones_dataset.csv
+
           if-no-files-found: ignore
 
 
@@ -214,22 +226,27 @@ jobs:
       # ============================================================
       - name: Upload Backup
         uses: actions/upload-artifact@v4
+
         if: always()
 
         with:
           name: siprem-supabase-backup
-          path: backups/siprem_backup.dump
+
+          path: |
+            backups/siprem_backup.dump
+
           if-no-files-found: ignore
 
 
       # ============================================================
-      # 12. Final
+      # 12. Final del pipeline
       # ============================================================
       - name: Pipeline finished
         run: |
           echo "=============================================="
           echo "🐄 SIPREM-BOVINO"
           echo "=============================================="
+          echo "✅ Conexión Supabase verificada"
           echo "✅ Reentrenamiento ejecutado"
           echo "✅ Predicciones generadas"
           echo "✅ Backup realizado"
