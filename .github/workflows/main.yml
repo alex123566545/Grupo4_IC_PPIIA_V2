@@ -1,4 +1,3 @@
-```yaml
 name: SIPREM-BOVINO ML Pipeline
 
 on:
@@ -235,4 +234,3 @@ jobs:
           echo "✅ Predicciones generadas"
           echo "✅ Backup realizado"
           echo "=============================================="
-```
