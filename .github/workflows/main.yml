@@ -1,4 +1,3 @@
-```yaml
 name: SIPREM-BOVINO ML Pipeline
 
 on:
@@ -144,4 +143,3 @@ jobs:
       # =====================================
       - name: Pipeline finished
         run: echo "🚀 REENTRENAMIENTO + PREDICCIONES + BACKUP ejecutado correctamente"
-```
