@@ -90,7 +90,7 @@ jobs:
 
 
           # --------------------------------------------------------
-          # Comprobar que existe el objeto necesario
+          # Comprobar que existe la vista necesaria
           # --------------------------------------------------------
           cur.execute('''
               SELECT
@@ -101,24 +101,28 @@ jobs:
               JOIN pg_namespace n
                   ON n.oid = c.relnamespace
               WHERE n.nspname = 'gold_ml'
-              AND c.relname = 'gold_ml.predicciones_verificadas_sin_intervencion';
+                AND c.relname = 'predicciones_verificadas_sin_intervencion'
+                AND c.relkind = 'v';
           ''')
 
           resultado = cur.fetchone()
 
-          print('OBJETO ENCONTRADO:', resultado)
+          print('VISTA ENCONTRADA:', resultado)
 
 
           if resultado is None:
+
               print(
-                  '❌ NO SE ENCONTRÓ '
-                  'ggold_ml.predicciones_verificadas_sin_intervencion'
+                  '❌ NO SE ENCONTRÓ LA VISTA '
+                  'gold_ml.predicciones_verificadas_sin_intervencion'
               )
+
               raise SystemExit(1)
 
           else:
+
               print(
-                  '✅ EL OBJETO EXISTE Y ES VISIBLE DESDE GITHUB'
+                  '✅ LA VISTA EXISTE Y ES VISIBLE DESDE GITHUB'
               )
 
 
