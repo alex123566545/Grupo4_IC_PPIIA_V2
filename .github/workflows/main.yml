@@ -35,7 +35,7 @@ jobs:
 
 
       # ============================================================
-      # 3. Instalar dependencias
+      # 3. Instalar dependencias Python
       # ============================================================
       - name: Install dependencies
         run: |
@@ -158,12 +158,18 @@ jobs:
 
 
       # ============================================================
-      # 7. Instalar cliente PostgreSQL
+      # 7. Instalar PostgreSQL Client 17
       # ============================================================
-      - name: Install PostgreSQL Client
+      - name: Install PostgreSQL Client 17
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-client-17
+
+          echo "=============================================="
+          echo "🔎 VERSIÓN DE PG_DUMP"
+          echo "=============================================="
+
+          pg_dump --version
 
 
       # ============================================================
@@ -209,7 +215,7 @@ jobs:
 
 
       # ============================================================
-      # 10. Guardar predicciones
+      # 10. Guardar predicciones CSV
       # ============================================================
       - name: Upload predictions CSV
         uses: actions/upload-artifact@v4
