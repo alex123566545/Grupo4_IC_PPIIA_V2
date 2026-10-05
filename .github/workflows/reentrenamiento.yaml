@@ -1,58 +1,37 @@
-```yaml
 name: SIPREM-BOVINO - Reentrenamiento
 
 on:
-
   workflow_dispatch:
 
-
 jobs:
-
   reentrenamiento:
-
     runs-on: ubuntu-latest
 
     steps:
 
-      # ============================================================
-      # 1. Descargar el repositorio
-      # ============================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
-      # ============================================================
-      # 2. Configurar Python
-      # ============================================================
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-
-      # ============================================================
-      # 3. Instalar dependencias Python
-      # ============================================================
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-
-      # ============================================================
-      # 4. Verificar conexión y vista de entrenamiento
-      # ============================================================
       - name: Verify Supabase and training view
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-
         run: |
           python -c "
           import os
           import psycopg2
 
           print('==============================================')
-          print('🔎 VERIFICACIÓN DE SUPABASE')
+          print('VERIFICACION DE SUPABASE')
           print('==============================================')
 
           print(
@@ -100,51 +79,35 @@ jobs:
           print('VISTA ENCONTRADA:', resultado)
 
           if resultado is None:
-
               print(
-                  '❌ NO SE ENCONTRÓ LA VISTA '
+                  'NO SE ENCONTRO LA VISTA '
                   'gold_ml.predicciones_verificadas_sin_intervencion'
               )
-
               raise SystemExit(1)
 
-          else:
-
-              print(
-                  '✅ LA VISTA EXISTE Y ES VISIBLE DESDE GITHUB'
-              )
+          print(
+              'LA VISTA EXISTE Y ES VISIBLE DESDE GITHUB'
+          )
 
           cur.close()
           conn.close()
 
           print('==============================================')
-          print('✅ VERIFICACIÓN FINALIZADA')
+          print('VERIFICACION FINALIZADA')
           print('==============================================')
           "
 
-
-      # ============================================================
-      # 5. Reentrenar modelo
-      # ============================================================
       - name: Retrain model
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-
         run: |
           python main_reentrenamiento.py
 
-
-      # ============================================================
-      # 6. Guardar artifacts del modelo
-      # ============================================================
       - name: Upload ML artifacts
         uses: actions/upload-artifact@v4
-
         if: always()
-
         with:
           name: siprem-ml-models
-
           path: |
             models/model.pkl
             models/encoders.pkl
@@ -153,22 +116,15 @@ jobs:
             models/comparacion_modelos.csv
             models/diagnostico_lotes_rf_sin_lote29.csv
             models/predicciones_test_rf_sin_lote29.csv
-
           if-no-files-found: ignore
 
-
-      # ============================================================
-      # 7. Final
-      # ============================================================
       - name: Retraining pipeline finished
         run: |
-
           echo "=============================================="
-          echo "🐄 SIPREM-BOVINO"
+          echo "SIPREM-BOVINO"
           echo "=============================================="
-          echo "✅ Conexión Supabase verificada"
-          echo "✅ Vista de entrenamiento verificada"
-          echo "✅ Reentrenamiento ejecutado"
-          echo "✅ Artifacts guardados"
+          echo "Conexion Supabase verificada"
+          echo "Vista de entrenamiento verificada"
+          echo "Reentrenamiento ejecutado"
+          echo "Artifacts guardados"
           echo "=============================================="
-```
