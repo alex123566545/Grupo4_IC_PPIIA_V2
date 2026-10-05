@@ -1618,7 +1618,7 @@ def entrenar_modelo():
                 AS fuente_dato
 
             FROM
-                gold_ml.predicciones_verificadas_para_entrenamiento
+                 gold_ml.predicciones_verificadas_sin_intervencion
 
             ORDER BY
                 id_lote,
