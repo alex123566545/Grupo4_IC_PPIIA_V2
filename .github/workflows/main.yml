@@ -101,7 +101,7 @@ jobs:
               JOIN pg_namespace n
                   ON n.oid = c.relnamespace
               WHERE n.nspname = 'gold_ml'
-              AND c.relname = 'predicciones_verificadas_para_entrenamiento';
+              AND c.relname = 'gold_ml.predicciones_verificadas_sin_intervencion';
           ''')
 
           resultado = cur.fetchone()
@@ -112,7 +112,7 @@ jobs:
           if resultado is None:
               print(
                   '❌ NO SE ENCONTRÓ '
-                  'gold_ml.predicciones_verificadas_para_entrenamiento'
+                  'ggold_ml.predicciones_verificadas_sin_intervencion'
               )
               raise SystemExit(1)
 
