@@ -162,14 +162,43 @@ jobs:
       # ============================================================
       - name: Install PostgreSQL Client 17
         run: |
+
+          echo "=============================================="
+          echo "📦 INSTALANDO POSTGRESQL CLIENT 17"
+          echo "=============================================="
+
           sudo apt-get update
+
+          sudo apt-get install -y \
+            curl \
+            ca-certificates \
+            gnupg
+
+          # --------------------------------------------------------
+          # Agregar repositorio oficial de PostgreSQL (PGDG)
+          # --------------------------------------------------------
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor \
+            -o /usr/share/keyrings/postgresql.gpg
+
+          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+
+          # --------------------------------------------------------
+          # Actualizar repositorios
+          # --------------------------------------------------------
+          sudo apt-get update
+
+          # --------------------------------------------------------
+          # Instalar PostgreSQL Client 17
+          # --------------------------------------------------------
           sudo apt-get install -y postgresql-client-17
 
           echo "=============================================="
           echo "🔎 VERSIÓN DE PG_DUMP"
           echo "=============================================="
 
-          pg_dump --version
+          /usr/lib/postgresql/17/bin/pg_dump --version
 
 
       # ============================================================
@@ -180,15 +209,26 @@ jobs:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
         run: |
+
+          echo "=============================================="
+          echo "💾 CREANDO BACKUP DE SUPABASE"
+          echo "=============================================="
+
           mkdir -p backups
 
-          pg_dump \
+          /usr/lib/postgresql/17/bin/pg_dump \
             -h aws-0-us-west-2.pooler.supabase.com \
             -p 5432 \
             -U postgres.cuxppijddpiuaxwyswfb \
             -d postgres \
             -F c \
             -f backups/siprem_backup.dump
+
+          echo "=============================================="
+          echo "✅ BACKUP CREADO"
+          echo "=============================================="
+
+          ls -lh backups/siprem_backup.dump
 
 
       # ============================================================
@@ -253,10 +293,12 @@ jobs:
       # ============================================================
       - name: Pipeline finished
         run: |
+
           echo "=============================================="
           echo "🐄 SIPREM-BOVINO"
           echo "=============================================="
           echo "✅ Conexión Supabase verificada"
+          echo "✅ Vista de entrenamiento verificada"
           echo "✅ Reentrenamiento ejecutado"
           echo "✅ Predicciones generadas"
           echo "✅ Backup realizado"
