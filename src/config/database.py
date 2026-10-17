@@ -1,10 +1,10 @@
-import os
-
 import psycopg2
+import os
+import sys
+
 from dotenv import load_dotenv
 
 load_dotenv()
-
 
 def get_connection():
     return psycopg2.connect(
@@ -12,6 +12,6 @@ def get_connection():
         port=5432,
         database="postgres",
         user="postgres.cuxppijddpiuaxwyswfb",
-        password=os.getenv("SUPABASE_DB_PASSWORD"),
+        password="alex20151615665451",
         sslmode="require"
     )
